@@ -8,6 +8,10 @@
 import configparser
 
 
+"""
+    Config object used for storing all of the configuration data from the config.ini file
+
+"""
 class Config(object):
     def __init__(self):
 

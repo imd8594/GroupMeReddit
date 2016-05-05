@@ -5,14 +5,20 @@
     $(DATE)
 
 """
-from groupy import Group, Bot, config
-from groupmebot.config import Config
-from praw import Reddit, errors
-from urllib.parse import urlparse
 import mimetypes
 import random
+from urllib.parse import urlparse
+
+from groupy import Group, Bot, config
+from praw import Reddit, errors
+
+from groupmebot.config import Config
 
 
+"""
+    Bot object that will get a random image from a subreddit and post it to groupme
+
+"""
 class RedditBot(object):
     def __init__(self):
         configs = Config()
@@ -28,12 +34,15 @@ class RedditBot(object):
 
         self.bot = [bot for bot in Bot.list() if bot.bot_id == self.botID][0]
 
+
     def postImage(self, subreddit=None):
         link = self.getRandomImage(subreddit)
         self.bot.post(link)
 
+
     def getLatestMessage(self):
         return [group for group in Group.list() if group.group_id == self.groupID][0].messages().newest
+
 
     def getRandomImage(self, subreddit=None):
         reddit = Reddit("Groupme")
@@ -46,7 +55,7 @@ class RedditBot(object):
             sub = reddit.get_subreddit(subreddit)
             subPosts = sub.get_hot(limit=40)
             if not self.nsfw and sub.over18:
-                return
+                return "NSFW filter is currently on"
         except errors.PRAWException:
             return str(subreddit) + " is not a valid subreddit"
 
@@ -60,19 +69,24 @@ class RedditBot(object):
         else:
             return "No images found"
 
+
     def banUser(self, username):
         self.bannedUsers.append(username)
 
+
     def unbanUser(self, username):
         self.bannedUsers.remove(username)
+
 
     def setNsfwOn(self):
         self.nsfw = True
         self.bot.post("NSFW ON")
 
+
     def setNsfwOff(self):
         self.nsfw = False
         self.bot.post("NSFW OFF")
+
 
     def run(self):
 
