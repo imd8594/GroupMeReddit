@@ -1,8 +1,8 @@
 """
     Ian Dansereau
-    $(PROJECT_NAME)
-    $(NAME)
-    $(DATE)
+    GroupMeReddit
+    config.py
+    5/5/16
 
 """
 import configparser
