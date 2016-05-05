@@ -24,7 +24,7 @@ def main():
         bot.run()
 
     except Exception as e:
-        print(e.__traceback__)
+        print(e.with_traceback())
 
 
 if __name__ == '__main__':

@@ -11,8 +11,17 @@ from urllib.parse import urlparse
 
 from groupy import Group, Bot, config
 from praw import Reddit, errors
+from enum import Enum
 
 from groupmebot.config import Config
+
+
+class RedditBotState(Enum):
+    READY = 0  # polling groupme for new messages containing command
+    BUSY = 1  # searching for image, and posting image
+
+    def __str__(self):
+        return self.name
 
 
 """
@@ -30,18 +39,29 @@ class RedditBot(object):
         self.prefix = configs._prefix
         self.nsfw = configs.nsfw
 
-        self.bannedUsers = []
-
         self.bot = [bot for bot in Bot.list() if bot.bot_id == self.botID][0]
+        self.group = [group for group in Group.list() if group.group_id == self.groupID][0]
+
+        self.state = RedditBotState.READY
+        self.currentCommand = str(self.getLatestMessage().id)
+        self.commandQueue = []
 
 
     def postImage(self, subreddit=None):
         link = self.getRandomImage(subreddit)
         self.bot.post(link)
+        self.state = RedditBotState.READY
 
 
     def getLatestMessage(self):
-        return [group for group in Group.list() if group.group_id == self.groupID][0].messages().newest
+        return self.group.messages().newest
+
+
+    def getCommands(self):
+        commands = self.group.messages(after=self.currentCommand).filter(text__contains=self.prefix+"sr")
+        for command in commands:
+            if command.id not in self.commandQueue:
+                self.commandQueue.append(command)
 
 
     def getRandomImage(self, subreddit=None):
@@ -53,7 +73,7 @@ class RedditBot(object):
 
         try:
             sub = reddit.get_subreddit(subreddit)
-            subPosts = sub.get_hot(limit=40)
+            subPosts = sub.get_hot(limit=50)
             if not self.nsfw and sub.over18:
                 return "NSFW filter is currently on"
         except errors.PRAWException:
@@ -70,22 +90,16 @@ class RedditBot(object):
             return "No images found"
 
 
-    def banUser(self, username):
-        self.bannedUsers.append(username)
-
-
-    def unbanUser(self, username):
-        self.bannedUsers.remove(username)
-
-
     def setNsfwOn(self):
         self.nsfw = True
         self.bot.post("NSFW ON")
+        self.state = RedditBotState.READY
 
 
     def setNsfwOff(self):
         self.nsfw = False
         self.bot.post("NSFW OFF")
+        self.state = RedditBotState.READY
 
 
     def run(self):
@@ -96,26 +110,27 @@ class RedditBot(object):
 
         while True:
             try:
-                message = self.getLatestMessage()
-                messageText = message.text.lower()
-                messageAuthor = message.name
-
-                if self.prefix + "set ban" in messageText and messageAuthor == self.admin:
-                     self.banUser(messageText.split(self.prefix+"set ban")[1])
-                if self.prefix + "set unban" in messageText and messageAuthor == self.admin:
-                     self.unbanUser(messageText.split(self.prefix+"sr ban")[1])
-                if self.prefix + "set nsfw" in messageText and messageAuthor == self.admin:
-                    if "on" in messageText.split(self.prefix+"set nsfw")[1]:
-                        self.setNsfwOn()
-                    if "off" in messageText.split(self.prefix+"set nsfw")[1]:
-                        self.setNsfwOff()
-                elif self.prefix + "sr" in messageText:
-                    if messageAuthor not in self.bannedUsers:
-                        subreddit = messageText.split(self.prefix+"sr")[1].split()[0]
+                if self.state == RedditBotState.READY:
+                    # first make sure queue is empty, if not pop latest command and run it
+                    if self.commandQueue:
+                        self.state = RedditBotState.BUSY
+                        message = self.commandQueue.pop(0)
+                        subreddit = message.text.split()[1]
+                        if subreddit == "setnsfw" and message.name == self.admin:
+                            if "on" in message.text.split()[2]:
+                                self.setNsfwOn()
+                            if "off" in message.text.split()[2]:
+                                self.setNsfwOff()
+                        self.currentCommand = str(message.id)
                         self.postImage(subreddit)
+                    else:
+                        self.getCommands()
+                    
+                if self.state == RedditBotState.BUSY:
+                    self.getCommands()
 
             except Exception as e:
-                print(e)
+                print(e.with_traceback())
 
 
 if __name__ == '__main__':
