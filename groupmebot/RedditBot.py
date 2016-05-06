@@ -130,7 +130,7 @@ class RedditBot(object):
                     self.getCommands()
 
             except Exception as e:
-                print(e.with_traceback())
+                print(e)
 
 
 if __name__ == '__main__':
