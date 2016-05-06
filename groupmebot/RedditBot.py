@@ -8,6 +8,7 @@
 import mimetypes
 import random
 from urllib.parse import urlparse
+from urllib.request import urlopen
 
 from groupy import Group, Bot, config
 from praw import Reddit, errors
@@ -58,13 +59,10 @@ class RedditBot(object):
 
 
     def getCommands(self):
-        try:
-            commands = self.group.messages(after=self.currentCommand).filter(text__contains=self.prefix+"sr")
-            for command in commands:
-                if command.id not in self.commandQueue:
-                    self.commandQueue.append(command)
-        except Exception as e:
-            print(e)
+        commands = self.group.messages(after=self.currentCommand).filter(text__contains=self.prefix+"sr")
+        for command in commands:
+            if command.id not in self.commandQueue:
+                self.commandQueue.append(command)
 
 
     def getRandomImage(self, subreddit=None):
@@ -84,24 +82,32 @@ class RedditBot(object):
 
         for post in subPosts:
             maintype = mimetypes.guess_type(urlparse(post.url).path)[0]
-            if maintype in ('image/png', 'image/jpeg', 'image/gif', 'image/jpg'):
-               subImages.append(post.url)
+            if maintype in ('image/png', 'image/gif', 'image/jpg') or post.url.endswith('.gifv'):
+                if self.getSize(post.url) < 10:
+                    subImages.append(post.url)
 
         if subImages:
             return random.choice(subImages)
         else:
             return "No images found"
 
+    def getSize(self, url):
+        file = urlopen(url)
+        size = file.headers.get("content-length")
+        if size:
+            size = int(size)
+        file.close()
+        return size/1000000
 
     def setNsfwOn(self):
         self.nsfw = True
-        self.bot.post("NSFW ON")
+        self.bot.post("NSFW Filter off")
         self.state = RedditBotState.READY
 
 
     def setNsfwOff(self):
         self.nsfw = False
-        self.bot.post("NSFW OFF")
+        self.bot.post("NSFW Filter on")
         self.state = RedditBotState.READY
 
 
@@ -118,7 +124,7 @@ class RedditBot(object):
                     if self.commandQueue:
                         self.state = RedditBotState.BUSY
                         message = self.commandQueue.pop(0)
-                        subreddit = message.text.split()[1]
+                        subreddit = message.text.split(self.prefix+"sr")[1].split()[0]
                         if subreddit == "setnsfw" and message.name == self.admin:
                             if "on" in message.text.split()[2]:
                                 self.setNsfwOn()
