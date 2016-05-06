@@ -23,7 +23,7 @@ def main():
         bot = rb()
         bot.run()
 
-    except Exception as e:
+    except (KeyboardInterrupt, SystemExit) as e:
         print(e)
 
 

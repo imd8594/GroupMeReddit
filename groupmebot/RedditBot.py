@@ -58,10 +58,13 @@ class RedditBot(object):
 
 
     def getCommands(self):
-        commands = self.group.messages(after=self.currentCommand).filter(text__contains=self.prefix+"sr")
-        for command in commands:
-            if command.id not in self.commandQueue:
-                self.commandQueue.append(command)
+        try:
+            commands = self.group.messages(after=self.currentCommand).filter(text__contains=self.prefix+"sr")
+            for command in commands:
+                if command.id not in self.commandQueue:
+                    self.commandQueue.append(command)
+        except Exception as e:
+            print(e)
 
 
     def getRandomImage(self, subreddit=None):
