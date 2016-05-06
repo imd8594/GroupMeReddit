@@ -81,8 +81,9 @@ class RedditBot(object):
             return str(subreddit) + " is not a valid subreddit"
 
         for post in subPosts:
+            allowedExt = ['.jpg', '.jpeg', '.gifv', '.png']
             maintype = mimetypes.guess_type(urlparse(post.url).path)[0]
-            if maintype in ('image/png', 'image/gif', 'image/jpg') or post.url.endswith('.gifv'):
+            if maintype in ('image/png', 'image/gif', 'image/jpg') or post.url.endswith(tuple(allowedExt)):
                 if self.getSize(post.url) < 10:
                     subImages.append(post.url)
 
