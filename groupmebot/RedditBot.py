@@ -9,6 +9,7 @@ import mimetypes
 import random
 from urllib.parse import urlparse
 from urllib.request import urlopen
+import traceback
 
 from groupy import Group, Bot, config
 from praw import Reddit, errors
@@ -81,9 +82,12 @@ class RedditBot(object):
             return str(subreddit) + " is not a valid subreddit"
 
         for post in subPosts:
-            allowedExt = ['.jpg', '.jpeg', '.gifv', '.png']
-            maintype = mimetypes.guess_type(urlparse(post.url).path)[0]
-            if maintype in ('image/png', 'image/gif', 'image/jpg') or post.url.endswith(tuple(allowedExt)):
+            imageExt = ['.jpg', '.jpeg','.png']
+            gifExt = ['.gif', '.gifv']
+            mimetype = mimetypes.guess_type(urlparse(post.url).path)[0]
+            if mimetype in ('image/png', 'image/jpg') or post.url.endswith(tuple(imageExt)):
+                subImages.append(post.url)
+            if mimetype in ('image/gif', '') or post.url.endswith(tuple(gifExt)):
                 if self.getSize(post.url) < 10:
                     subImages.append(post.url)
 
@@ -140,7 +144,7 @@ class RedditBot(object):
                     self.getCommands()
 
             except Exception as e:
-                print(e)
+                print(traceback.print_tb(e.__traceback__))
 
 
 if __name__ == '__main__':
