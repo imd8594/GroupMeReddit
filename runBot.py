@@ -21,11 +21,12 @@ def main():
         from groupmebot import RedditBot
 
         bot = rb()
-        bot.run()
+        bot.run().send(None)
 
-    except (KeyboardInterrupt, SystemExit) as e:
-        print(e)
-
+    except (KeyboardInterrupt, SystemExit):
+        raise
+    except:
+        pass
 
 if __name__ == '__main__':
     main()

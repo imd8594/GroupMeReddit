@@ -7,9 +7,11 @@
 """
 import mimetypes
 import random
+import traceback
+import asyncio
 from urllib.parse import urlparse
 from urllib.request import urlopen
-import traceback
+from collections import OrderedDict
 
 from groupy import Group, Bot, config
 from praw import Reddit, errors
@@ -46,55 +48,71 @@ class RedditBot(object):
 
         self.state = RedditBotState.READY
         self.currentCommand = str(self.getLatestMessage().id)
-        self.commandQueue = []
-
-
-    def postImage(self, subreddit=None):
-        link = self.getRandomImage(subreddit)
-        self.bot.post(link)
-        self.state = RedditBotState.READY
+        self.commandQueue = OrderedDict()
 
 
     def getLatestMessage(self):
         return self.group.messages().newest
 
 
-    def getCommands(self):
+    async def getCommands(self):
         commands = self.group.messages(after=self.currentCommand).filter(text__contains=self.prefix+"sr")
         for command in commands:
-            if command.id not in self.commandQueue:
-                self.commandQueue.append(command)
+            if command.id not in self.commandQueue.values():
+                self.commandQueue[command] = command.id
 
 
-    def getRandomImage(self, subreddit=None):
+
+    async def postRandomImage(self, subreddit=None):
         reddit = Reddit("Groupme")
         subImages = []
+        subPosts = []
 
         if subreddit is None:
-            return "None Error"
+            self.bot.post("None Error")
+            self.state = RedditBotState.READY
 
         try:
             sub = reddit.get_subreddit(subreddit)
             subPosts = sub.get_hot(limit=50)
             if not self.nsfw and sub.over18:
-                return "NSFW filter is currently on"
+                self.bot.post("NSFW filter is currently on")
+                self.state = RedditBotState.READY
         except errors.PRAWException:
-            return str(subreddit) + " is not a valid subreddit"
+            self.bot.post(str(subreddit) + " is not a valid subreddit")
+            self.state = RedditBotState.READY
 
-        for post in subPosts:
-            imageExt = ['.jpg', '.jpeg','.png']
-            gifExt = ['.gif', '.gifv']
-            mimetype = mimetypes.guess_type(urlparse(post.url).path)[0]
-            if mimetype in ('image/png', 'image/jpg') or post.url.endswith(tuple(imageExt)):
-                subImages.append(post.url)
-            if mimetype in ('image/gif', '') or post.url.endswith(tuple(gifExt)):
-                if self.getSize(post.url) < 10:
+        try:
+            for post in subPosts:
+                imageExt = ['.jpg', '.jpeg','.png']
+                gifExt = ['.gif', '.gifv']
+                mimetype = mimetypes.guess_type(urlparse(post.url).path)[0]
+                if mimetype in ('image/png', 'image/jpg') or post.url.endswith(tuple(imageExt)):
                     subImages.append(post.url)
+                if mimetype in ('image/gif', '') or post.url.endswith(tuple(gifExt)):
+                    if self.getSize(post.url) < 10:
+                        subImages.append(post.url)
+        except Exception as e:
+            print(e)
 
         if subImages:
-            return random.choice(subImages)
+            self.bot.post(random.choice(subImages))
+            self.state = RedditBotState.READY
         else:
-            return "No images found"
+            self.bot.post("No images found")
+            self.state = RedditBotState.READY
+
+    async def runCommand(self):
+        self.state = RedditBotState.BUSY
+        message = self.commandQueue.popitem(0)[0]
+        subreddit = message.text.split(self.prefix+"sr")[1].split()[0]
+        if subreddit == "setnsfw" and message.name == self.admin:
+            if "on" in message.text.split()[2]:
+                self.setNsfwOn()
+            if "off" in message.text.split()[2]:
+                self.setNsfwOff()
+        self.currentCommand = str(message.id)
+        await self.postRandomImage(subreddit)
 
     def getSize(self, url):
         file = urlopen(url)
@@ -116,7 +134,7 @@ class RedditBot(object):
         self.state = RedditBotState.READY
 
 
-    def run(self):
+    async def run(self):
 
         print("Running Bot")
         print("NSFW="+str(self.nsfw))
@@ -125,23 +143,13 @@ class RedditBot(object):
         while True:
             try:
                 if self.state == RedditBotState.READY:
-                    # first make sure queue is empty, if not pop latest command and run it
-                    if self.commandQueue:
-                        self.state = RedditBotState.BUSY
-                        message = self.commandQueue.pop(0)
-                        subreddit = message.text.split(self.prefix+"sr")[1].split()[0]
-                        if subreddit == "setnsfw" and message.name == self.admin:
-                            if "on" in message.text.split()[2]:
-                                self.setNsfwOn()
-                            if "off" in message.text.split()[2]:
-                                self.setNsfwOff()
-                        self.currentCommand = str(message.id)
-                        self.postImage(subreddit)
+                    if len(self.commandQueue) > 0:
+                        await self.runCommand()
                     else:
-                        self.getCommands()
-                    
+                        await self.getCommands()
+
                 if self.state == RedditBotState.BUSY:
-                    self.getCommands()
+                    await self.getCommands()
 
             except Exception as e:
                 print(traceback.print_tb(e.__traceback__))
@@ -149,4 +157,6 @@ class RedditBot(object):
 
 if __name__ == '__main__':
     bot = RedditBot()
-    bot.run()
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(bot.run().send(None))
+    loop.close()
