@@ -25,6 +25,6 @@ class Config(object):
         self._botID = config.get('BOT', 'BotID', fallback=None)
         self._prefix = config.get('BOT', 'Prefix', fallback='!')
 
-        self.admin = config.get('ADMIN', 'Admin', fallback=None)
+        self.admin = config.get('ADMIN', 'AdminID', fallback=None)
         self.nsfw = config.getboolean('ADMIN', 'Nsfw', fallback=False)
 

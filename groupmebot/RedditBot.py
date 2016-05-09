@@ -3,7 +3,6 @@
     GroupMeReddit
     RedditBot.py
     5/5/16
-
 """
 import mimetypes
 import random
@@ -15,22 +14,13 @@ from collections import OrderedDict
 
 from groupy import Group, Bot, config
 from praw import Reddit, errors
-from enum import Enum
 
 from groupmebot.config import Config
 
 
-class RedditBotState(Enum):
-    READY = 0  # polling groupme for new messages containing command
-    BUSY = 1  # searching for image, and posting image
-
-    def __str__(self):
-        return self.name
-
 
 """
     Bot object that will get a random image from a subreddit and post it to groupme
-
 """
 class RedditBot(object):
     def __init__(self):
@@ -46,21 +36,25 @@ class RedditBot(object):
         self.bot = [bot for bot in Bot.list() if bot.bot_id == self.botID][0]
         self.group = [group for group in Group.list() if group.group_id == self.groupID][0]
 
-        self.state = RedditBotState.READY
         self.currentCommand = str(self.getLatestMessage().id)
         self.commandQueue = OrderedDict()
+        self.bannedUsers = []
 
 
     def getLatestMessage(self):
         return self.group.messages().newest
 
 
-    async def getCommands(self):
+    def connectBot(self):
+        self.bot = [bot for bot in Bot.list() if bot.bot_id == self.botID][0]
+        self.group = [group for group in Group.list() if group.group_id == self.groupID][0]
+
+
+    def getCommands(self):
         commands = self.group.messages(after=self.currentCommand).filter(text__contains=self.prefix+"sr")
         for command in commands:
             if command.id not in self.commandQueue.values():
                 self.commandQueue[command] = command.id
-
 
 
     async def postRandomImage(self, subreddit=None):
@@ -70,17 +64,16 @@ class RedditBot(object):
 
         if subreddit is None:
             self.bot.post("None Error")
-            self.state = RedditBotState.READY
 
         try:
             sub = reddit.get_subreddit(subreddit)
             subPosts = sub.get_hot(limit=50)
             if not self.nsfw and sub.over18:
                 self.bot.post("NSFW filter is currently on")
-                self.state = RedditBotState.READY
+                return
         except errors.PRAWException:
             self.bot.post(str(subreddit) + " is not a valid subreddit")
-            self.state = RedditBotState.READY
+            return
 
         try:
             for post in subPosts:
@@ -97,22 +90,43 @@ class RedditBot(object):
 
         if subImages:
             self.bot.post(random.choice(subImages))
-            self.state = RedditBotState.READY
         else:
             self.bot.post("No images found")
-            self.state = RedditBotState.READY
+
 
     async def runCommand(self):
-        self.state = RedditBotState.BUSY
         message = self.commandQueue.popitem(0)[0]
-        subreddit = message.text.split(self.prefix+"sr")[1].split()[0]
-        if subreddit == "setnsfw" and message.name == self.admin:
-            if "on" in message.text.split()[2]:
-                self.setNsfwOn()
-            if "off" in message.text.split()[2]:
-                self.setNsfwOff()
         self.currentCommand = str(message.id)
-        await self.postRandomImage(subreddit)
+        if message.user_id not in self.bannedUsers:
+            subreddit = message.text.split(self.prefix+"sr")[1].split()[0]
+            if subreddit == "setnsfw" and message.user_id == self.admin:
+                if "on" in message.text.split()[2]:
+                    self.setNsfwOn()
+                if "off" in message.text.split()[2]:
+                    self.setNsfwOff()
+                return
+            if subreddit == "ban" and message.user_id == self.admin:
+                if message.attachments:
+                    for a in message.attachments:
+                        if a.type == 'mentions':
+                            bannedUser = a.user_ids[0]
+                    self.banUser(bannedUser)
+                else:
+                    self.bot.post("Please tag a user to ban")
+                return
+            if subreddit == "unban" and message.user_id == self.admin:
+                if message.attachments:
+                    for a in message.attachments:
+                        if a.type == 'mentions':
+                            unbannedUser = a.user_ids[0]
+                    self.unbanUser(unbannedUser)
+                else:
+                    self.bot.post("Please tag a user to unban")
+                return
+            await self.postRandomImage(subreddit)
+        else:
+            self.bot.post(message.name + " is currently banned")
+
 
     def getSize(self, url):
         file = urlopen(url)
@@ -122,36 +136,49 @@ class RedditBot(object):
         file.close()
         return size/1000000
 
+
+    def banUser(self, userID):
+        user = [member for member in self.group.members() if member.user_id == userID][0]
+        if user is not None:
+            self.bannedUsers.append(user.user_id)
+            self.bot.post(user.nickname + " banned")
+        else:
+            self.bot.post("Error Banning " + user.nickname)
+
+
+    def unbanUser(self, userID):
+        user = [member for member in self.group.members() if member.user_id == userID][0]
+        if user.user_id in self.bannedUsers:
+            self.bannedUsers.remove(user.user_id)
+            self.bot.post(user.nickname + " un-banned")
+        else:
+            self.bot.post("Error Un-banning " + user.nickname)
+
     def setNsfwOn(self):
         self.nsfw = True
         self.bot.post("NSFW Filter off")
-        self.state = RedditBotState.READY
 
 
     def setNsfwOff(self):
         self.nsfw = False
         self.bot.post("NSFW Filter on")
-        self.state = RedditBotState.READY
 
 
     async def run(self):
 
         print("Running Bot")
         print("NSFW="+str(self.nsfw))
-        print("Admin="+str(self.admin))
+        print("Admin="+str([member for member in self.group.members() if member.user_id == self.admin][0]))
 
         while True:
             try:
-                if self.state == RedditBotState.READY:
-                    if len(self.commandQueue) > 0:
-                        await self.runCommand()
-                    else:
-                        await self.getCommands()
-
-                if self.state == RedditBotState.BUSY:
-                    await self.getCommands()
+                if len(self.commandQueue) > 0:
+                    await self.runCommand()
+                else:
+                    self.getCommands()
 
             except Exception as e:
+                self.connectBot()
                 print(traceback.print_tb(e.__traceback__))
 
 
