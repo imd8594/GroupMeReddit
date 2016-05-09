@@ -14,16 +14,17 @@ from urllib.request import urlopen
 from collections import OrderedDict
 
 from groupy import Group, Bot, config
+from groupy.api.errors import ApiError
 from praw import Reddit, errors
 
 from groupmebot.config import Config
-
-
 
 """
     Bot object that will get a random image from a subreddit and post it to groupme
 
 """
+
+
 class RedditBot(object):
     def __init__(self):
         configs = Config()
@@ -42,22 +43,22 @@ class RedditBot(object):
         self.commandQueue = OrderedDict()
         self.bannedUsers = []
 
-
     def getLatestMessage(self):
         return self.group.messages().newest
-
 
     def connectBot(self):
         self.bot = [bot for bot in Bot.list() if bot.bot_id == self.botID][0]
         self.group = [group for group in Group.list() if group.group_id == self.groupID][0]
 
-
     def getCommands(self):
-        commands = self.group.messages(after=self.currentCommand).filter(text__contains=self.prefix+"sr")
-        for command in commands:
-            if command.id not in self.commandQueue.values():
-                self.commandQueue[command] = command.id
-
+        try:
+            commands = self.group.messages(after=self.currentCommand).filter(text__contains=self.prefix + "sr")
+            for command in commands:
+                if command.id not in self.commandQueue.values():
+                    self.commandQueue[command] = command.id
+        except ApiError as e:
+            self.connectBot()
+            print(print(traceback.print_tb(e.__traceback__)))
 
     async def postRandomImage(self, subreddit=None):
         reddit = Reddit("Groupme")
@@ -79,7 +80,7 @@ class RedditBot(object):
 
         try:
             for post in subPosts:
-                imageExt = ['.jpg', '.jpeg','.png']
+                imageExt = ['.jpg', '.jpeg', '.png']
                 gifExt = ['.gif', '.gifv']
                 mimetype = mimetypes.guess_type(urlparse(post.url).path)[0]
                 if mimetype in ('image/png', 'image/jpg') or post.url.endswith(tuple(imageExt)):
@@ -95,12 +96,11 @@ class RedditBot(object):
         else:
             self.bot.post("No images found")
 
-
     async def runCommand(self):
         message = self.commandQueue.popitem(0)[0]
         self.currentCommand = str(message.id)
         if message.user_id not in self.bannedUsers:
-            subreddit = message.text.split(self.prefix+"sr")[1].split()[0]
+            subreddit = message.text.split(self.prefix + "sr")[1].split()[0]
             if subreddit == "setnsfw" and message.user_id == self.admin:
                 if "on" in message.text.split()[2]:
                     self.setNsfwOn()
@@ -129,15 +129,13 @@ class RedditBot(object):
         else:
             self.bot.post(message.name + " is currently banned")
 
-
     def getSize(self, url):
         file = urlopen(url)
         size = file.headers.get("content-length")
         if size:
             size = int(size)
         file.close()
-        return size/1000000
-
+        return size / 1000000
 
     def banUser(self, userID):
         user = [member for member in self.group.members() if member.user_id == userID][0]
@@ -147,7 +145,6 @@ class RedditBot(object):
         else:
             self.bot.post("Error Banning " + user.nickname)
 
-
     def unbanUser(self, userID):
         user = [member for member in self.group.members() if member.user_id == userID][0]
         if user.user_id in self.bannedUsers:
@@ -156,26 +153,23 @@ class RedditBot(object):
         else:
             self.bot.post("Error Un-banning " + user.nickname)
 
-
     def setNsfwOn(self):
         self.nsfw = True
         self.bot.post("NSFW Filter off")
-
 
     def setNsfwOff(self):
         self.nsfw = False
         self.bot.post("NSFW Filter on")
 
-
     async def run(self):
 
         print("Running Bot")
-        print("NSFW="+str(self.nsfw))
-        print("Admin="+str([member for member in self.group.members() if member.user_id == self.admin][0]))
+        print("NSFW=" + str(self.nsfw))
+        print("Admin=" + str([member for member in self.group.members() if member.user_id == self.admin][0]))
 
         while True:
             try:
-                if len(self.commandQueue) > 0:
+                if self.commandQueue:
                     await self.runCommand()
                 else:
                     self.getCommands()
