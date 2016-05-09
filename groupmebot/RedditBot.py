@@ -3,6 +3,7 @@
     GroupMeReddit
     RedditBot.py
     5/5/16
+
 """
 import mimetypes
 import random
@@ -21,6 +22,7 @@ from groupmebot.config import Config
 
 """
     Bot object that will get a random image from a subreddit and post it to groupme
+
 """
 class RedditBot(object):
     def __init__(self):
@@ -153,6 +155,7 @@ class RedditBot(object):
             self.bot.post(user.nickname + " un-banned")
         else:
             self.bot.post("Error Un-banning " + user.nickname)
+
 
     def setNsfwOn(self):
         self.nsfw = True
