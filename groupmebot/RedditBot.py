@@ -69,6 +69,7 @@ class RedditBot(object):
                     await self.setNsfw(True)
                 if "off" in command.text.split()[2]:
                     await self.setNsfw(False)
+                return
             if subreddit == "ban" and command.user_id == self.admin:
                 if command.attachments:
                     for a in command.attachments:
@@ -77,6 +78,7 @@ class RedditBot(object):
                     await self.banUser(bannedUser)
                 else:
                     self.bot.post("Please tag a user to ban")
+                return
             if subreddit == "unban" and command.user_id == self.admin:
                 if command.attachments:
                     for a in command.attachments:
@@ -89,7 +91,6 @@ class RedditBot(object):
             await self.postRandomImage(subreddit)
         else:
             self.bot.post(command.name + " is currently banned")
-
 
     async def postRandomImage(self, subreddit):
         reddit = Reddit("Groupme")
@@ -104,7 +105,7 @@ class RedditBot(object):
             subPosts = sub.get_hot(limit=50)
             if not self.nsfw and sub.over18:
                 self.bot.post("NSFW filter is currently on")
-
+                return
         except errors.PRAWException:
             self.bot.post(str(subreddit) + " is not a valid subreddit")
 
