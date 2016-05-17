@@ -59,7 +59,7 @@ class RedditBot(object):
         self.bot = [bot for bot in Bot.list() if bot.bot_id == self.botID][0]
         self.group = [group for group in Group.list() if group.group_id == self.groupID][0]
 
-    def getCommands(self):
+    async def getCommands(self):
         try:
             commands = self.group.messages(after=self.currentCommand).filter(text__contains=self.prefix + "sr")
             for command in commands:
