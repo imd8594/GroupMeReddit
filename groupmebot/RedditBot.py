@@ -38,7 +38,11 @@ class RedditBot(object):
         configs = Config()
         config.KEY_LOCATION = configs.api_key
 
+        self.config = configs
+
         self.admin = configs.admin
+        self.moderators = configs.moderators
+        self.bannedUsers = configs.banned
         self.groupID = configs._groupID
         self.botID = configs._botID
         self.prefix = configs._prefix
@@ -50,12 +54,12 @@ class RedditBot(object):
 
         self.currentCommand = str(self.getLatestMessage().id)
         self.commandQueue = OrderedDict()
-        self.bannedUsers = []
+
 
     def getLatestMessage(self):
         return self.group.messages().newest
 
-    def connectBot(self):
+    async def connectBot(self):
         self.bot = [bot for bot in Bot.list() if bot.bot_id == self.botID][0]
         self.group = [group for group in Group.list() if group.group_id == self.groupID][0]
 
@@ -65,52 +69,81 @@ class RedditBot(object):
             for command in commands:
                 if command.id not in self.commandQueue.values():
                     self.commandQueue[command] = command.id
-        except ApiError as e:
-            self.connectBot()
+        except ApiError and TypeError as e:
+            await self.connectBot()
             print(print(traceback.print_tb(e.__traceback__)))
 
     async def filterCommands(self):
         command = self.commandQueue.popitem(0)[0]
         self.currentCommand = command.id
+        nonPostCommands = ['setnsfw', 'ban', 'unban', 'mod', 'unmod']
+
         if command.user_id not in self.bannedUsers:
             subreddit = command.text.split(self.prefix + "sr")[1].split()[0]
-            if subreddit == "setnsfw" and command.user_id == self.admin:
-                if "on" in command.text.split()[2]:
-                    await self.setNsfw(True)
-                if "off" in command.text.split()[2]:
-                    await self.setNsfw(False)
-                return
-            if subreddit == "ban" and command.user_id == self.admin:
-                if command.attachments:
-                    for a in command.attachments:
-                        if a.type == 'mentions':
-                            bannedUser = a.user_ids[0]
-                    await self.banUser(bannedUser)
-                else:
-                    self.bot.post("Please tag a user to ban")
-                return
-            if subreddit == "unban" and command.user_id == self.admin:
-                if command.attachments:
-                    for a in command.attachments:
-                        if a.type == 'mentions':
-                            unbannedUser = a.user_ids[0]
-                    await self.unbanUser(unbannedUser)
-                else:
-                    self.bot.post("Please tag a user to unban")
-                return
-
-            try:
-                if subreddit == "randomsr":
-                    sub = self.reddit.get_random_subreddit(self.nsfw)
-                else:
-                    sub = self.reddit.get_subreddit(subreddit)
-                if not self.nsfw and sub.over18:
-                    self.bot.post("NSFW filter is currently on")
+            if subreddit in nonPostCommands:
+                if subreddit == "setnsfw" and (command.user_id == self.admin or command.user_id in self.moderators):
+                    if "on" in command.text.split()[2]:
+                        await self.setNsfw(True)
+                    if "off" in command.text.split()[2]:
+                        await self.setNsfw(False)
                     return
-                await self.postRandomImage(sub)
-            except errors.PRAWException:
-                self.bot.post(str(subreddit) + " is not a valid subreddit")
-                return
+
+                if subreddit == "ban" and (command.user_id == self.admin or command.user_id in self.moderators):
+                    if command.attachments:
+                        for a in command.attachments:
+                            if a.type == 'mentions':
+                                bannedUser = a.user_ids[0]
+                        if bannedUser != self.admin and bannedUser not in self.moderators:
+                            await self.banUser(bannedUser)
+                        else:
+                            self.bot.post("Cannot ban admin or moderator")
+                    else:
+                        self.bot.post("Please tag a user to ban")
+                    return
+
+                if subreddit == "unban" and (command.user_id == self.admin or command.user_id in self.moderators):
+                    if command.attachments:
+                        for a in command.attachments:
+                            if a.type == 'mentions':
+                                unbannedUser = a.user_ids[0]
+                        await self.unbanUser(unbannedUser)
+                    else:
+                        self.bot.post("Please tag a user to unban")
+                    return
+
+                if subreddit == "mod" and command.user_id == self.admin:
+                    if command.attachments:
+                        for a in command.attachments:
+                            if a.type == 'mentions':
+                                moddedUser = a.user_ids[0]
+                        await self.modUser(moddedUser)
+                    else:
+                        self.bot.post("Please tag a user to mod")
+                    return
+
+                if subreddit == "unmod" and command.user_id == self.admin:
+                    if command.attachments:
+                        for a in command.attachments:
+                            if a.type == 'mentions':
+                                unModdedUser = a.user_ids[0]
+                        await self.umodUser(unModdedUser)
+                    else:
+                        self.bot.post("Please tag a user to unban")
+                    return
+            else:
+
+                try:
+                    if subreddit == "randomsr":
+                        sub = self.reddit.get_random_subreddit(self.nsfw)
+                    else:
+                        sub = self.reddit.get_subreddit(subreddit)
+                    if not self.nsfw and sub.over18:
+                        self.bot.post("NSFW filter is currently on")
+                        return
+                    await self.postRandomImage(sub)
+                except errors.PRAWException:
+                    self.bot.post(str(subreddit) + " is not a valid subreddit")
+                    return
         else:
             self.bot.post(command.name + " is currently banned")
 
@@ -142,18 +175,44 @@ class RedditBot(object):
     async def banUser(self, userID):
         user = [member for member in self.group.members() if member.user_id == userID][0]
         if user is not None:
-            self.bannedUsers.append(user.user_id)
-            self.bot.post(user.nickname + " banned")
+            if userID not in self.bannedUsers:
+                self.config.addBanned(user.user_id)
+                self.bannedUsers = self.config.getBanned()
+                self.bot.post(user.nickname + " banned")
+            else:
+                self.bot.post(user.nickname + " is already banned")
         else:
             self.bot.post("Error Banning " + user.nickname)
 
     async def unbanUser(self, userID):
         user = [member for member in self.group.members() if member.user_id == userID][0]
         if user.user_id in self.bannedUsers:
-            self.bannedUsers.remove(user.user_id)
+            self.config.removeBanned(user.user_id)
+            self.bannedUsers = self.config.getBanned()
             self.bot.post(user.nickname + " un-banned")
         else:
             self.bot.post("Error Un-banning " + user.nickname)
+
+    async def modUser(self, userID):
+        user = [member for member in self.group.members() if member.user_id == userID][0]
+        if user is not None:
+            if userID not in self.moderators:
+                self.config.addMod(user.user_id)
+                self.moderators = self.config.getMods()
+                self.bot.post(user.nickname + " is now a moderator")
+            else:
+                self.bot.post(user.nickname + " is already a moderator")
+        else:
+            self.bot.post("Error Modding " + user.nickname)
+
+    async def umodUser(self, userID):
+        user = [member for member in self.group.members() if member.user_id == userID][0]
+        if user.user_id in self.moderators:
+            self.config.removeMod(user.user_id)
+            self.moderators = self.config.getMods()
+            self.bot.post(user.nickname + " is no longer a moderator")
+        else:
+            self.bot.post("Error Un-Modding " + user.nickname)
 
     async def setNsfw(self, value):
         if value:
