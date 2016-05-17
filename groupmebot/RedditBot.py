@@ -108,7 +108,7 @@ class RedditBot(object):
                 return
         except errors.PRAWException:
             self.bot.post(str(subreddit) + " is not a valid subreddit")
-
+            return
         try:
             for post in subPosts:
                 imageExt = ['.jpg', '.jpeg', '.png']
