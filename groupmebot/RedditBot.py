@@ -8,7 +8,6 @@
 import mimetypes
 import random
 import traceback
-import asyncio
 from urllib.parse import urlparse
 from urllib.request import urlopen
 from collections import OrderedDict
@@ -60,7 +59,39 @@ class RedditBot(object):
             self.connectBot()
             print(print(traceback.print_tb(e.__traceback__)))
 
-    async def postRandomImage(self, subreddit=None):
+    async def filterCommands(self):
+        command = self.commandQueue.popitem(0)[0]
+        self.currentCommand = command.id
+        if command.user_id not in self.bannedUsers:
+            subreddit = command.text.split(self.prefix + "sr")[1].split()[0]
+            if subreddit == "setnsfw" and command.user_id == self.admin:
+                if "on" in command.text.split()[2]:
+                    await self.setNsfw(True)
+                if "off" in command.text.split()[2]:
+                    await self.setNsfw(False)
+            if subreddit == "ban" and command.user_id == self.admin:
+                if command.attachments:
+                    for a in command.attachments:
+                        if a.type == 'mentions':
+                            bannedUser = a.user_ids[0]
+                    await self.banUser(bannedUser)
+                else:
+                    self.bot.post("Please tag a user to ban")
+            if subreddit == "unban" and command.user_id == self.admin:
+                if command.attachments:
+                    for a in command.attachments:
+                        if a.type == 'mentions':
+                            unbannedUser = a.user_ids[0]
+                    await self.unbanUser(unbannedUser)
+                else:
+                    self.bot.post("Please tag a user to unban")
+                return
+            await self.postRandomImage(subreddit)
+        else:
+            self.bot.post(command.name + " is currently banned")
+
+
+    async def postRandomImage(self, subreddit):
         reddit = Reddit("Groupme")
         subImages = []
         subPosts = []
@@ -73,10 +104,9 @@ class RedditBot(object):
             subPosts = sub.get_hot(limit=50)
             if not self.nsfw and sub.over18:
                 self.bot.post("NSFW filter is currently on")
-                return
+
         except errors.PRAWException:
             self.bot.post(str(subreddit) + " is not a valid subreddit")
-            return
 
         try:
             for post in subPosts:
@@ -96,38 +126,6 @@ class RedditBot(object):
         else:
             self.bot.post("No images found")
 
-    async def runCommand(self):
-        message = self.commandQueue.popitem(0)[0]
-        self.currentCommand = str(message.id)
-        if message.user_id not in self.bannedUsers:
-            subreddit = message.text.split(self.prefix + "sr")[1].split()[0]
-            if subreddit == "setnsfw" and message.user_id == self.admin:
-                if "on" in message.text.split()[2]:
-                    self.setNsfwOn()
-                if "off" in message.text.split()[2]:
-                    self.setNsfwOff()
-                return
-            if subreddit == "ban" and message.user_id == self.admin:
-                if message.attachments:
-                    for a in message.attachments:
-                        if a.type == 'mentions':
-                            bannedUser = a.user_ids[0]
-                    self.banUser(bannedUser)
-                else:
-                    self.bot.post("Please tag a user to ban")
-                return
-            if subreddit == "unban" and message.user_id == self.admin:
-                if message.attachments:
-                    for a in message.attachments:
-                        if a.type == 'mentions':
-                            unbannedUser = a.user_ids[0]
-                    self.unbanUser(unbannedUser)
-                else:
-                    self.bot.post("Please tag a user to unban")
-                return
-            await self.postRandomImage(subreddit)
-        else:
-            self.bot.post(message.name + " is currently banned")
 
     def getSize(self, url):
         file = urlopen(url)
@@ -137,7 +135,7 @@ class RedditBot(object):
         file.close()
         return size / 1000000
 
-    def banUser(self, userID):
+    async def banUser(self, userID):
         user = [member for member in self.group.members() if member.user_id == userID][0]
         if user is not None:
             self.bannedUsers.append(user.user_id)
@@ -145,7 +143,7 @@ class RedditBot(object):
         else:
             self.bot.post("Error Banning " + user.nickname)
 
-    def unbanUser(self, userID):
+    async def unbanUser(self, userID):
         user = [member for member in self.group.members() if member.user_id == userID][0]
         if user.user_id in self.bannedUsers:
             self.bannedUsers.remove(user.user_id)
@@ -153,13 +151,13 @@ class RedditBot(object):
         else:
             self.bot.post("Error Un-banning " + user.nickname)
 
-    def setNsfwOn(self):
-        self.nsfw = True
-        self.bot.post("NSFW Filter off")
-
-    def setNsfwOff(self):
-        self.nsfw = False
-        self.bot.post("NSFW Filter on")
+    async def setNsfw(self, value):
+        if value:
+            self.nsfw = True
+            self.bot.post("NSFW Filter off")
+        if not value:
+            self.nsfw = False
+            self.bot.post("NSFW Filter on")
 
     async def run(self):
 
@@ -170,17 +168,10 @@ class RedditBot(object):
         while True:
             try:
                 if self.commandQueue:
-                    await self.runCommand()
+                    await self.filterCommands()
                 else:
                     self.getCommands()
 
             except Exception as e:
                 self.connectBot()
                 print(traceback.print_tb(e.__traceback__))
-
-
-if __name__ == '__main__':
-    bot = RedditBot()
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(bot.run().send(None))
-    loop.close()
