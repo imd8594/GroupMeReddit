@@ -126,7 +126,7 @@ class RedditBot(object):
                         for a in command.attachments:
                             if a.type == 'mentions':
                                 unModdedUser = a.user_ids[0]
-                        await self.umodUser(unModdedUser)
+                        await self.unmodUser(unModdedUser)
                     else:
                         self.bot.post("Please tag a user to unban")
                     return
@@ -205,7 +205,7 @@ class RedditBot(object):
         else:
             self.bot.post("Error Modding " + user.nickname)
 
-    async def umodUser(self, userID):
+    async def unmodUser(self, userID):
         user = [member for member in self.group.members() if member.user_id == userID][0]
         if user.user_id in self.moderators:
             self.config.removeMod(user.user_id)
