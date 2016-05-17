@@ -6,6 +6,7 @@
 
 """
 import sys
+import asyncio
 from groupmebot.RedditBot import RedditBot as rb
 
 
@@ -21,9 +22,12 @@ def main():
         from groupmebot import RedditBot
 
         bot = rb()
-        bot.run().send(None)
+        loop = asyncio.get_event_loop()
+        asyncio.ensure_future(bot.run())
+        loop.run_forever()
 
     except (KeyboardInterrupt, SystemExit):
+        loop.close()
         raise
     except:
         pass
