@@ -7,13 +7,13 @@
 """
 import configparser
 
-
 """
     Config object used for storing all of the configuration data from the config.ini file
 
 """
-class Config(object):
 
+
+class Config(object):
     def __init__(self):
 
         self.config_file = 'config/config.ini'

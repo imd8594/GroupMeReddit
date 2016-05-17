@@ -18,11 +18,6 @@ from praw import Reddit, errors
 
 from groupmebot.config import Config
 
-"""
-    Bot object that will get a random image from a subreddit and post it to groupme
-
-"""
-
 
 def getSize(url):
     file = urlopen(url)
@@ -31,6 +26,12 @@ def getSize(url):
         size = int(size)
     file.close()
     return size / 1000000
+
+
+"""
+    Bot object that will get a random image from a subreddit and post it to groupme
+
+"""
 
 
 class RedditBot(object):
@@ -55,7 +56,6 @@ class RedditBot(object):
         self.currentCommand = str(self.getLatestMessage().id)
         self.commandQueue = OrderedDict()
 
-
     def getLatestMessage(self):
         return self.group.messages().newest
 
@@ -79,7 +79,7 @@ class RedditBot(object):
         nonPostCommands = ['setnsfw', 'ban', 'unban', 'mod', 'unmod']
 
         if command.user_id not in self.bannedUsers:
-            subreddit = command.text.split(self.prefix + "sr")[1].split()[0]
+            subreddit = command.text.split(self.prefix + "sr")[1].split()[0].lower()
             if subreddit in nonPostCommands:
                 if subreddit == "setnsfw" and (command.user_id == self.admin or command.user_id in self.moderators):
                     if "on" in command.text.split()[2]:
@@ -236,5 +236,5 @@ class RedditBot(object):
                     await self.getCommands()
 
             except Exception as e:
-                self.connectBot()
+                await self.connectBot()
                 print(traceback.print_tb(e.__traceback__))
