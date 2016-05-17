@@ -34,6 +34,7 @@ class RedditBot(object):
         self.botID = configs._botID
         self.prefix = configs._prefix
         self.nsfw = configs.nsfw
+        self.reddit = Reddit("Groupme")
 
         self.bot = [bot for bot in Bot.list() if bot.bot_id == self.botID][0]
         self.group = [group for group in Group.list() if group.group_id == self.groupID][0]
@@ -88,27 +89,29 @@ class RedditBot(object):
                 else:
                     self.bot.post("Please tag a user to unban")
                 return
-            await self.postRandomImage(subreddit)
+
+            try:
+                if subreddit == "randomsr":
+                    sub = self.reddit.get_random_subreddit(self.nsfw)
+                else:
+                    sub = self.reddit.get_subreddit(subreddit)
+                if not self.nsfw and sub.over18:
+                    self.bot.post("NSFW filter is currently on")
+                    return
+                await self.postRandomImage(sub)
+            except errors.PRAWException:
+                self.bot.post(str(subreddit) + " is not a valid subreddit")
+                return
         else:
             self.bot.post(command.name + " is currently banned")
 
     async def postRandomImage(self, subreddit):
-        reddit = Reddit("Groupme")
         subImages = []
-        subPosts = []
+        subPosts = subreddit.get_hot(limit=50)
 
         if subreddit is None:
             self.bot.post("None Error")
 
-        try:
-            sub = reddit.get_subreddit(subreddit)
-            subPosts = sub.get_hot(limit=50)
-            if not self.nsfw and sub.over18:
-                self.bot.post("NSFW filter is currently on")
-                return
-        except errors.PRAWException:
-            self.bot.post(str(subreddit) + " is not a valid subreddit")
-            return
         try:
             for post in subPosts:
                 imageExt = ['.jpg', '.jpeg', '.png']
