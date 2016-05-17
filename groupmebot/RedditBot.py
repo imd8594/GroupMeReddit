@@ -174,7 +174,7 @@ class RedditBot(object):
                 if self.commandQueue:
                     await self.filterCommands()
                 else:
-                    self.getCommands()
+                    await self.getCommands()
 
             except Exception as e:
                 self.connectBot()
