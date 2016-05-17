@@ -8,9 +8,9 @@
 import mimetypes
 import random
 import traceback
+from collections import OrderedDict
 from urllib.parse import urlparse
 from urllib.request import urlopen
-from collections import OrderedDict
 
 from groupy import Group, Bot, config
 from groupy.api.errors import ApiError
@@ -22,6 +22,15 @@ from groupmebot.config import Config
     Bot object that will get a random image from a subreddit and post it to groupme
 
 """
+
+
+def getSize(url):
+    file = urlopen(url)
+    size = file.headers.get("content-length")
+    if size:
+        size = int(size)
+    file.close()
+    return size / 1000000
 
 
 class RedditBot(object):
@@ -120,7 +129,7 @@ class RedditBot(object):
                 if mimetype in ('image/png', 'image/jpg') or post.url.endswith(tuple(imageExt)):
                     subImages.append(post.url)
                 if mimetype in ('image/gif', '') or post.url.endswith(tuple(gifExt)):
-                    if self.getSize(post.url) < 10:
+                    if getSize(post.url) < 10:
                         subImages.append(post.url)
         except Exception as e:
             print(e)
@@ -129,15 +138,6 @@ class RedditBot(object):
             self.bot.post(random.choice(subImages))
         else:
             self.bot.post("No images found")
-
-
-    def getSize(self, url):
-        file = urlopen(url)
-        size = file.headers.get("content-length")
-        if size:
-            size = int(size)
-        file.close()
-        return size / 1000000
 
     async def banUser(self, userID):
         user = [member for member in self.group.members() if member.user_id == userID][0]
