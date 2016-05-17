@@ -1,0 +1,12 @@
+
+.idea/.name
+
+.idea/encodings.xml
+
+*.iml
+
+*.xml
+
+config/config.ini
+
+*.pyc
