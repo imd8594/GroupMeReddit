@@ -69,8 +69,9 @@ class RedditBot(object):
             for command in commands:
                 if command.id not in self.commandQueue.values():
                     self.commandQueue[command] = command.id
-        except ApiError and TypeError as e:
+        except Exception as e:
             self.connectBot()
+            print(e)
             print(print(traceback.print_tb(e.__traceback__)))
 
     async def filterCommands(self):
