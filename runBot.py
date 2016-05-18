@@ -20,7 +20,6 @@ def main():
         print("Python 3.5+ is required. This version is %s" % sys.version.split()[0])
 
     try:
-        from groupmebot import RedditBot
 
         bot = rb()
         loop = asyncio.get_event_loop()
