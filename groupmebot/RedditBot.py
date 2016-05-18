@@ -59,18 +59,18 @@ class RedditBot(object):
     def getLatestMessage(self):
         return self.group.messages().newest
 
-    async def connectBot(self):
+    def connectBot(self):
         self.bot = [bot for bot in Bot.list() if bot.bot_id == self.botID][0]
         self.group = [group for group in Group.list() if group.group_id == self.groupID][0]
 
-    async def getCommands(self):
+    def getCommands(self):
         try:
             commands = self.group.messages(after=self.currentCommand).filter(text__contains=self.prefix + "sr")
             for command in commands:
                 if command.id not in self.commandQueue.values():
                     self.commandQueue[command] = command.id
         except ApiError and TypeError as e:
-            await self.connectBot()
+            self.connectBot()
             print(print(traceback.print_tb(e.__traceback__)))
 
     async def filterCommands(self):
@@ -233,8 +233,8 @@ class RedditBot(object):
                 if self.commandQueue:
                     await self.filterCommands()
                 else:
-                    await self.getCommands()
+                    self.getCommands()
 
             except Exception as e:
-                await self.connectBot()
+                self.connectBot()
                 print(traceback.print_tb(e.__traceback__))
