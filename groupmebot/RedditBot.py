@@ -65,10 +65,11 @@ class RedditBot(object):
 
     def getCommands(self):
         try:
-            commands = self.group.messages(after=self.currentCommand).filter(text__contains=self.prefix + "sr")
-            for command in commands:
-                if command.id not in self.commandQueue.values():
-                    self.commandQueue[command] = command.id
+            if len(self.group.messages(after=self.currentCommand).filter(text__contains=self.prefix + "sr")) > 0:
+                commands = self.group.messages(after=self.currentCommand).filter(text__contains=self.prefix + "sr")
+                for command in commands:
+                    if command.id not in self.commandQueue.values():
+                        self.commandQueue[command] = command.id
         except Exception as e:
             self.connectBot()
             print(e)
