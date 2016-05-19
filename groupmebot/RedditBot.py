@@ -8,6 +8,7 @@
 import mimetypes
 import random
 import traceback
+from enum import Enum
 from collections import OrderedDict
 from urllib.parse import urlparse
 from urllib.request import urlopen
@@ -26,6 +27,13 @@ def getSize(url):
         size = int(size)
     file.close()
     return size / 1000000
+
+class RedditBotState(Enum):
+    READY = 0  # polling groupme for new messages containing command
+    BUSY = 1  # searching for image, and posting image
+
+    def __str__(self):
+        return self.name
 
 
 """
@@ -49,6 +57,7 @@ class RedditBot(object):
         self.prefix = configs._prefix
         self.nsfw = configs.nsfw
         self.reddit = Reddit("Groupme")
+        self.state = RedditBotState.BUSY
 
         self.bot = [bot for bot in Bot.list() if bot.bot_id == self.botID][0]
         self.group = [group for group in Group.list() if group.group_id == self.groupID][0]
@@ -65,8 +74,8 @@ class RedditBot(object):
 
     def getCommands(self):
         try:
-            if len(self.group.messages(after=self.currentCommand).filter(text__contains=self.prefix + "sr")) > 0:
-                commands = self.group.messages(after=self.currentCommand).filter(text__contains=self.prefix + "sr")
+            commands = self.group.messages(after=self.currentCommand).filter(text__contains=self.prefix + "sr")
+            if commands:
                 for command in commands:
                     if command.id not in self.commandQueue.values():
                         self.commandQueue[command] = command.id
@@ -74,6 +83,8 @@ class RedditBot(object):
             self.connectBot()
             print(e)
             print(print(traceback.print_tb(e.__traceback__)))
+        finally:
+            self.state = RedditBotState.READY
 
     async def filterCommands(self):
         command = self.commandQueue.popitem(0)[0]
@@ -81,8 +92,12 @@ class RedditBot(object):
         nonPostCommands = ['setnsfw', 'ban', 'unban', 'mod', 'unmod']
 
         if command.user_id not in self.bannedUsers:
-            subreddit = command.text.split(self.prefix + "sr")[1].split()[0].lower()
-            if subreddit in nonPostCommands:
+            try:
+                subreddit = command.text.split(self.prefix + "sr")[1].split()[0].lower()
+            except IndexError as e:
+                self.bot.post("Please enter a subreddit or command")
+                return
+            if subreddit and subreddit in nonPostCommands:
                 if subreddit == "setnsfw" and (command.user_id == self.admin or command.user_id in self.moderators):
                     if "on" in command.text.split()[2]:
                         await self.setNsfw(True)
@@ -233,8 +248,10 @@ class RedditBot(object):
         while True:
             try:
                 if self.commandQueue:
-                    await self.filterCommands()
+                    if self.state == RedditBotState.READY:
+                        await self.filterCommands()
                 else:
+                    self.state == RedditBotState.BUSY
                     self.getCommands()
 
             except Exception as e:

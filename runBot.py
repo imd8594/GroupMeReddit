@@ -29,7 +29,8 @@ def main():
     except (KeyboardInterrupt, SystemExit):
         loop.close()
         raise
-    except:
+    except Exception as e:
+        print(e)
         pass
 
 
