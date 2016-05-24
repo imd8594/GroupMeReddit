@@ -23,16 +23,13 @@ def main():
 
         bot = rb()
         loop = asyncio.get_event_loop()
-        asyncio.ensure_future(bot.run())
-        loop.run_forever()
+        loop.set_debug(True)
+        task = asyncio.ensure_future(bot.run())
+        loop.run_until_complete(task)
         loop.close()
 
-    except (KeyboardInterrupt, SystemExit):
-        raise
     except Exception as e:
         print(e)
-        pass
-
 
 if __name__ == '__main__':
     main()

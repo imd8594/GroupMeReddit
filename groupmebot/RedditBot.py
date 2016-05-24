@@ -80,11 +80,11 @@ class RedditBot(object):
                 for command in commands:
                     if command.id not in self.commandQueue.values():
                         self.commandQueue[command] = command.id
-            time.sleep(2)
+            time.sleep(1.25)
         except Exception as e:
             time.sleep(50)
             self.connectBot()
-            print(e)
+            print("Error: " + e)
         finally:
             self.state = RedditBotState.READY
 
@@ -253,9 +253,9 @@ class RedditBot(object):
                     if self.state == RedditBotState.READY:
                         await self.filterCommands()
                 else:
-                    self.state == RedditBotState.BUSY
+                    self.state = RedditBotState.BUSY
                     self.getCommands()
 
             except Exception as e:
                 self.connectBot()
-                print(traceback.print_tb(e.__traceback__))
+                print("Error: " + e)
