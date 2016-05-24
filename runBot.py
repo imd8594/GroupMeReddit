@@ -29,7 +29,7 @@ def main():
         loop.close()
 
     except Exception as e:
-        print(e)
+        print(e.__str__())
 
 if __name__ == '__main__':
     main()
