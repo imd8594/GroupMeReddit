@@ -8,6 +8,7 @@
 import mimetypes
 import random
 import traceback
+import time
 from enum import Enum
 from collections import OrderedDict
 from urllib.parse import urlparse
@@ -57,7 +58,7 @@ class RedditBot(object):
         self.prefix = configs._prefix
         self.nsfw = configs.nsfw
         self.reddit = Reddit("Groupme")
-        self.state = RedditBotState.BUSY
+        self.state = RedditBotState.READY
 
         self.bot = [bot for bot in Bot.list() if bot.bot_id == self.botID][0]
         self.group = [group for group in Group.list() if group.group_id == self.groupID][0]
@@ -79,10 +80,11 @@ class RedditBot(object):
                 for command in commands:
                     if command.id not in self.commandQueue.values():
                         self.commandQueue[command] = command.id
+            time.sleep(2)
         except Exception as e:
+            time.sleep(50)
             self.connectBot()
             print(e)
-            print(print(traceback.print_tb(e.__traceback__)))
         finally:
             self.state = RedditBotState.READY
 

@@ -25,9 +25,9 @@ def main():
         loop = asyncio.get_event_loop()
         asyncio.ensure_future(bot.run())
         loop.run_forever()
+        loop.close()
 
     except (KeyboardInterrupt, SystemExit):
-        loop.close()
         raise
     except Exception as e:
         print(e)
