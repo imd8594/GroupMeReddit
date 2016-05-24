@@ -30,8 +30,8 @@ def getSize(url):
     return size / 1000000
 
 class RedditBotState(Enum):
-    READY = 0  # polling groupme for new messages containing command
-    BUSY = 1  # searching for image, and posting image
+    READY = 0  # ready to post image
+    BUSY = 1  # checking group for new messages
 
     def __str__(self):
         return self.name
