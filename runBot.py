@@ -6,7 +6,6 @@
 
 """
 import sys
-import asyncio
 from groupmebot.RedditBot import RedditBot as rb
 
 """
@@ -20,19 +19,12 @@ def main():
         print("Python 3.5+ is required. This version is %s" % sys.version.split()[0])
 
     try:
-        from groupmebot import RedditBot
 
         bot = rb()
-        loop = asyncio.get_event_loop()
-        asyncio.ensure_future(bot.run())
-        loop.run_forever()
+        bot.run()
 
-    except (KeyboardInterrupt, SystemExit):
-        loop.close()
-        raise
-    except:
-        pass
-
+    except Exception as e:
+        print(e.__str__())
 
 if __name__ == '__main__':
     main()
