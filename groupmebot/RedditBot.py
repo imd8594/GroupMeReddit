@@ -7,7 +7,6 @@
 """
 import mimetypes
 import random
-import traceback
 import time
 from enum import Enum
 from collections import OrderedDict
@@ -82,9 +81,9 @@ class RedditBot(object):
                         self.commandQueue[command] = command.id
             time.sleep(1.25) #TODO: find out how much time needed between requests to stop api errors
         except Exception as e:
-            time.sleep(1200) #wait 120 seconds to hopefully let the groupme request limit reset
-            self.connectBot()
             print("Error in getCommands(): " + e.__str__())
+            time.sleep(120) #wait 120 seconds to hopefully let the groupme request limit reset
+            self.connectBot()
         finally:
             self.state = RedditBotState.READY
 
