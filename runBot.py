@@ -22,11 +22,7 @@ def main():
     try:
 
         bot = rb()
-        loop = asyncio.get_event_loop()
-        loop.set_debug(True)
-        task = asyncio.ensure_future(bot.run())
-        loop.run_until_complete(task)
-        loop.close()
+        bot.run()
 
     except Exception as e:
         print(e.__str__())
