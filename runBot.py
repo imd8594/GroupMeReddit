@@ -6,7 +6,6 @@
 
 """
 import sys
-import asyncio
 from groupmebot.RedditBot import RedditBot as rb
 
 """
