@@ -83,11 +83,14 @@ class RedditBot(object):
 
     def getCommands(self):
         try:
-            commands = self.group.messages(after=self.currentCommand).filter(text__contains=self.prefix + "sr")
-            if commands is not None:
-                for command in commands:
-                    if command.id not in self.commandQueue.values():
-                        self.commandQueue[command] = command.id
+            if self.group is not None:
+                commands = self.group.messages(after=self.currentCommand).filter(text__contains=self.prefix + "sr")
+                if commands is not None:
+                    for command in commands:
+                        if command.id not in self.commandQueue.values():
+                            self.commandQueue[command] = command.id
+            else:
+                raise Exception("group is None")
             time.sleep(1.25) #TODO: find out how much time needed between requests to stop api errors
         except Exception as e:
             print("Error in getCommands(): " + e.__str__())
