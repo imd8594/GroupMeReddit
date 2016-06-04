@@ -75,6 +75,7 @@ class RedditBot(object):
             if bot is not None and group is not None:
                 self.bot = bot
                 self.group = group
+                self.currentCommand = str(group.messages().newest.id)
                 print("Successfully connected bot")
             else:
                 print("Error connecting bot")
