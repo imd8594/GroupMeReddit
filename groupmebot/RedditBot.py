@@ -69,16 +69,29 @@ class RedditBot(object):
         return self.group.messages().newest
 
     def connectBot(self):
-        self.bot = [bot for bot in Bot.list() if bot.bot_id == self.botID][0]
-        self.group = [group for group in Group.list() if group.group_id == self.groupID][0]
+        try:
+            bot = [bot for bot in Bot.list() if bot.bot_id == self.botID][0]
+            group = [group for group in Group.list() if group.group_id == self.groupID][0]
+            if bot is not None and group is not None:
+                self.bot = bot
+                self.group = group
+                self.currentCommand = str(group.messages().newest.id)
+                print("Successfully connected bot")
+            else:
+                print("Error connecting bot")
+        except Exception as e:
+            print("Error in connectBot(): " + e.__str__())
 
     def getCommands(self):
         try:
-            commands = self.group.messages(after=self.currentCommand).filter(text__contains=self.prefix + "sr")
-            if commands:
-                for command in commands:
-                    if command.id not in self.commandQueue.values():
-                        self.commandQueue[command] = command.id
+            if self.group is not None:
+                commands = self.group.messages(after=self.currentCommand).filter(text__contains=self.prefix + "sr")
+                if commands is not None:
+                    for command in commands:
+                        if command.id not in self.commandQueue.values():
+                            self.commandQueue[command] = command.id
+            else:
+                raise Exception("group is None")
             time.sleep(1.25) #TODO: find out how much time needed between requests to stop api errors
         except Exception as e:
             print("Error in getCommands(): " + e.__str__())
