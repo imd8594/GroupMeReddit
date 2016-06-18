@@ -254,11 +254,20 @@ class RedditBot(object):
             self.nsfw = False
             self.bot.post("NSFW Filter on")
 
+    def listUserId(self):
+        for member in self.group.members():
+            print(member.nickname + ": " + member.user_id)
+
     def run(self):
 
         print("Running Bot")
         print("NSFW=" + str(self.nsfw))
-        print("Admin=" + str([member for member in self.group.members() if member.user_id == self.admin][0]))
+        try:
+            print("Admin=" + str([member for member in self.group.members() if member.user_id == self.admin][0]))
+        except IndexError:
+            print("Error: Place one of the following valid AdminID's in config/config.ini:")
+            self.listUserId()
+            print("Running with admin features disabled")
 
         while True:
             try:
