@@ -6,10 +6,11 @@
 
 """
 
+
 class User(object):
 
     def __init__(self, user_id, role):
-        self._user_id = id
+        self._user_id = user_id
         self._role = role
 
     def getId(self):
