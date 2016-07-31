@@ -9,15 +9,22 @@
 
 class User(object):
 
-    def __init__(self, user_id, role):
+    def __init__(self, user_id, role, nickname):
         self._user_id = user_id
         self._role = role
+        self._nickname = nickname
 
     def getId(self):
         return self._user_id
 
     def getRole(self):
         return self._role
+
+    def getNickname(self):
+        return self._nickname
+
+    def setNickname(self, nickname):
+        self._nickname = nickname
 
     def setRole(self, role):
         self._role = role
