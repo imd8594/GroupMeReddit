@@ -10,3 +10,7 @@
 config/config.ini
 
 *.pyc
+
+config/blacklist.txt
+
+config/moderators.txt

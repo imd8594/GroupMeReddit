@@ -21,17 +21,26 @@ class Config(object):
         self.moderator_file = 'config/moderators.txt'
         self.api_key = 'config/.groupy.key'
 
-        config = configparser.ConfigParser()
-        config.read(self.config_file, encoding='utf-8')
+        self.config = configparser.ConfigParser()
+        self.config.read(self.config_file, encoding='utf-8')
 
-        self._groupID = config.get('BOT', 'GroupID', fallback=None)
-        self._botID = config.get('BOT', 'BotID', fallback=None)
-        self._prefix = config.get('BOT', 'Prefix', fallback='!')
+        self._groupID = self.config.get('BOT', 'groupid', fallback=None)
+        self._botID = self.config.get('BOT', 'botid', fallback=None)
+        self._prefix = self.config.get('BOT', 'prefix', fallback='!')
 
-        self.admin = config.get('ADMIN', 'AdminID', fallback=None)
+        self.admin = self.config.get('ADMIN', 'adminid', fallback=None)
         self.moderators = self.getMods()
         self.banned = self.getBanned()
-        self.nsfw = config.getboolean('ADMIN', 'Nsfw', fallback=False)
+        self.nsfw = self.config.getboolean('ADMIN', 'nsfw', fallback=False)
+
+    def getConfigFile(self):
+        return self.config_file
+
+    def setNsfw(self, nsfw):
+        self.config.read(self.config_file, encoding='utf-8')
+        self.config.set('ADMIN', 'nsfw', nsfw)
+        with open(self.config_file, 'w') as configfile:
+            self.config.write(configfile)
 
     def getBanned(self):
         banned = set()
