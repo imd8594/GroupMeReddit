@@ -10,6 +10,8 @@ import random
 from urllib.parse import urlparse
 from urllib.request import urlopen
 
+from praw import errors
+
 from groupmebot.config import Config
 from groupmebot.user import User
 
@@ -138,11 +140,16 @@ class PostImageCommand(Command):
     def run(self):
         if self.isValid():
             subImages = []
-            sub = self.reddit.get_subreddit(self.subreddit)
-            if sub.over18 and self.nsfw:
-                self.post("NSFW Filter is currently on")
+            try:
+                sub = self.reddit.get_subreddit(self.subreddit)
+
+                if sub.over18 and self.nsfw:
+                    self.post("NSFW Filter is currently on")
+                    return
+                subPosts = sub.get_hot(limit=50)
+            except errors.PRAWException:
+                self.post(str(self.subreddit) + " is not a valid subreddit")
                 return
-            subPosts = sub.get_hot(limit=50)
 
             try:
                 for post in subPosts:
