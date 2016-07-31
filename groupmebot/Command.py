@@ -29,7 +29,6 @@ class CommandFactory(object):
         self.nsfw = nsfw
         self.prefix = configs._prefix
         self.adminCommands = ['nsfwfilter', 'ban', 'unban', 'mod', 'unmod']
-        self.modCommands = ['nsfwfilter', 'ban', 'unban']
         self.specialCommands = ['randomsr']
         self.message = message
         self.bot = bot
@@ -40,7 +39,6 @@ class CommandFactory(object):
 
         self._setAuthor()
         self._setCommand()
-        self._setCommandType()
 
     def getMessage(self):
         return self.message
@@ -54,11 +52,6 @@ class CommandFactory(object):
         if self.command is None:
             raise CommandException("Command is None")
         return self.command
-
-    def getCommandType(self):
-        if self.commandType is None:
-            raise CommandException("Command Type is None")
-        return self.commandType
 
     def _setAuthor(self):
         self.role = None
@@ -76,19 +69,8 @@ class CommandFactory(object):
     def _setCommand(self):
         try:
             self.command = self.message.text.split(self.prefix + "sr")[1].split()[0].lower()
-            self._setCommandType()
         except IndexError:
             raise CommandException("Please enter a subreddit or command")
-
-    def _setCommandType(self):
-        if self.role == "admin" and self.command in self.adminCommands:
-            self.commandType = "admin"
-        if self.role == "moderator" and self.command in self.modCommands:
-            self.commandType = "moderator"
-        if self.command in self.specialCommands:
-            self.commandType = "special"
-        else:
-            self.commandType = "user"
 
     def createCommand(self):
         if self.command in self.adminCommands:
@@ -185,7 +167,7 @@ class PostImageCommand(Command):
 class PostRandomImageCommand(PostImageCommand):
     def __init__(self, message, author, bot, reddit, nsfw):
         self.nsfw = nsfw
-        self.subreddit = reddit.get_random_subreddit(self.nsfw)
+        self.subreddit = str(reddit.get_random_subreddit(self.nsfw))
         super().__init__(message, author, bot, reddit, self.subreddit, nsfw)
 
     def isValid(self):
