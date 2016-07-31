@@ -21,7 +21,7 @@ class CommandException(Exception):
 
 
 class CommandFactory(object):
-    def __init__(self, message, bot, reddit, nsfw):
+    def __init__(self, message, bot, group, reddit, nsfw):
         configs = Config()
         self.admin = configs.admin
         self.moderators = configs.moderators
@@ -32,6 +32,7 @@ class CommandFactory(object):
         self.specialCommands = ['randomsr']
         self.message = message
         self.bot = bot
+        self.group = group
         self.reddit = reddit
         self.author = None
         self.command = None
@@ -79,13 +80,13 @@ class CommandFactory(object):
             if self.command == "nsfwfilter" and "off" in self.message.text.split()[2]:
                 return SetNsfwCommand(self.message, self.author, self.bot, False)
             if self.command == "ban":
-                return BanUserCommand(self.message, self.author, self.bot)
+                return BanUserCommand(self.message, self.author, self.bot, self.group)
             if self.command == "unban":
-                return UnBanUserCommand(self.message, self.author, self.bot)
+                return UnBanUserCommand(self.message, self.author, self.bot, self.group)
             if self.command == "mod":
-                return ModUserCommand(self.message, self.author, self.bot)
+                return ModUserCommand(self.message, self.author, self.bot, self.group)
             if self.command == "unmod":
-                return UnModUserCommand(self.message, self.author, self.bot)
+                return UnModUserCommand(self.message, self.author, self.bot, self.group)
         elif self.command in self.specialCommands:
             if self.command == "randomsr":
                 return PostRandomImageCommand(self.message, self.author, self.bot, self.reddit, self.nsfw)
@@ -181,7 +182,8 @@ class PostRandomImageCommand(PostImageCommand):
 
 
 class BanUserCommand(Command):
-    def __init__(self, message, author, bot):
+    def __init__(self, message, author, bot, group):
+        self.group = group
         super().__init__(message, author, bot)
 
     def isValid(self):
@@ -192,51 +194,56 @@ class BanUserCommand(Command):
 
     def run(self):
         if self.isValid():
-            bannedUser = None
+            bannedUserId = None
+            bannedUserName = None
             if self.message.attachments:
                 for a in self.message.attachments:
                     if a.type == 'mentions':
-                        bannedUser = a.user_ids[0]
+                        bannedUserId = a.user_ids[0]
+                        bannedUserName = [member.nickname for member in self.group.members() if member.user_id == a.user_ids[0]][0]
             else:
                 self.post("Please tag a user to ban")
-            if bannedUser not in self.bannedUsers:
-                self.configs.addBanned(bannedUser)
+            if bannedUserId not in self.bannedUsers:
+                self.configs.addBanned(bannedUserId)
                 self.bannedUsers = self.configs.getBanned()
-                self.post(self.author.getNickname() + " banned")
+                self.post(bannedUserName + " banned")
             else:
-                self.post(self.author.getNickname() + " is already banned")
+                self.post(bannedUserName + " is already banned")
         else:
-            self.post("Error banning " + self.author.getNickname())
+            self.post("Error banning user")
 
 
 class UnBanUserCommand(BanUserCommand):
-    def __init__(self, message, author, bot):
-        super().__init__(message, author, bot)
+    def __init__(self, message, author, bot, group):
+        super().__init__(message, author, bot, group)
 
     def isValid(self):
         return super().isValid()
 
     def run(self):
         if self.isValid():
-            bannedUser = None
+            bannedUserId = None
+            bannedUserName = None
             if self.message.attachments:
                 for a in self.message.attachments:
                     if a.type == 'mentions':
-                        bannedUser = a.user_ids[0]
+                        bannedUserId = a.user_ids[0]
+                        bannedUserName = [member.nickname for member in self.group.members() if member.user_id == a.user_ids[0]][0]
             else:
                 self.post("Please tag a user to unban")
-            if bannedUser in self.bannedUsers:
-                self.configs.removeBanned(bannedUser)
+            if bannedUserId in self.bannedUsers:
+                self.configs.removeBanned(bannedUserId)
                 self.bannedUsers = self.configs.getBanned()
-                self.post(self.author.getNickname() + " unbanned")
+                self.post(bannedUserName + " unbanned")
             else:
-                self.post(self.author.getNickname() + " was not banned")
+                self.post(bannedUserName + " was not banned")
         else:
-            self.post("Error unbanning " + self.author.getNickname())
+            self.post("Error unbanning user")
 
 
 class ModUserCommand(Command):
-    def __init__(self, message, author, bot):
+    def __init__(self, message, author, bot, group):
+        self.group = group
         super().__init__(message, author, bot)
 
     def isValid(self):
@@ -247,47 +254,51 @@ class ModUserCommand(Command):
 
     def run(self):
         if self.isValid():
-            modUser = None
+            modUserId = None
+            modName = None
             if self.message.attachments:
                 for a in self.message.attachments:
                     if a.type == 'mentions':
-                        modUser = a.user_ids[0]
+                        modUserId = a.user_ids[0]
+                        modName = [member.nickname for member in self.group.members() if member.user_id == a.user_ids[0]][0]
             else:
                 self.post("Please tag a user to mod")
-            if modUser not in self.moderators:
-                self.configs.addMod(modUser)
+            if modUserId not in self.moderators:
+                self.configs.addMod(modUserId)
                 self.configs.moderators = self.configs.getMods()
-                self.post(self.author.getNickname() + " is now a moderator")
+                self.post(modName + " is now a moderator")
             else:
-                self.post(self.author.getNickname() + " is already a moderator")
+                self.post(modName + " is already a moderator")
         else:
-            self.post("Error modding " + self.author.getNickname())
+            self.post("Error modding user")
 
 
 class UnModUserCommand(ModUserCommand):
-    def __init__(self, message, author, bot):
-        super().__init__(message, author, bot)
+    def __init__(self, message, author, bot, group):
+        super().__init__(message, author, bot, group)
 
     def isValid(self):
         return super().isValid()
 
     def run(self):
         if self.isValid():
-            modUser = None
+            modUserId = None
+            modName = None
             if self.message.attachments:
                 for a in self.message.attachments:
                     if a.type == 'mentions':
-                        modUser = a.user_ids[0]
+                        modUserId = a.user_ids[0]
+                        modName = [member.nickname for member in self.group.members() if member.user_id == a.user_ids[0]][0]
             else:
                 self.post("Please tag a user to unmod")
-            if modUser in self.moderators:
-                self.configs.removeMod(modUser)
+            if modUserId in self.moderators:
+                self.configs.removeMod(modUserId)
                 self.moderators = self.configs.getMods()
-                self.bot.post(self.author.getNickname() + " is no longer a moderator")
+                self.bot.post(modName + " is no longer a moderator")
             else:
-                self.post(self.author.getNickname() + " was not a moderator")
+                self.post(modName + " was not a moderator")
         else:
-            self.post("Error Un-modding " + self.author.getNickname())
+            self.post("Error Un-modding user")
 
 
 class SetNsfwCommand(Command):

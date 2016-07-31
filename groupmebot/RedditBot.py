@@ -85,7 +85,7 @@ class RedditBot(object):
                 if messages is not None:
                     for message in messages:
                         try:
-                            command = CommandFactory(message, self.bot, self.reddit, self.nsfw).createCommand()
+                            command = CommandFactory(message, self.bot, self.group, self.reddit, self.nsfw).createCommand()
                             self.commandQueue[command.id] = command
                         except CommandException as e:
                             self.bot.post(str(e))
