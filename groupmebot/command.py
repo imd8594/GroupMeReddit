@@ -23,19 +23,16 @@ class CommandException(Exception):
 
 
 class CommandFactory(object):
-    def __init__(self, message, bot, group, reddit, nsfw):
+    def __init__(self, message, redditBot):
         configs = Config()
         self.admin = configs.admin
         self.moderators = configs.moderators
         self.bannedUsers = configs.banned
-        self.nsfw = nsfw
         self.prefix = configs._prefix
         self.adminCommands = ['nsfwfilter', 'ban', 'unban', 'mod', 'unmod']
         self.specialCommands = ['randomsr']
         self.message = message
-        self.bot = bot
-        self.group = group
-        self.reddit = reddit
+        self.redditBot = redditBot
         self.author = None
         self.command = None
         self.commandType = None
@@ -78,26 +75,26 @@ class CommandFactory(object):
     def createCommand(self):
         if self.command in self.adminCommands:
             if self.command == "nsfwfilter" and "on" in self.message.text.split()[2]:
-                return SetNsfwCommand(self.message, self.author, self.bot, True)
+                return SetNsfwCommand(self.message, self.author, self.redditBot, True)
             if self.command == "nsfwfilter" and "off" in self.message.text.split()[2]:
-                return SetNsfwCommand(self.message, self.author, self.bot, False)
+                return SetNsfwCommand(self.message, self.author, self.redditBot, False)
             if self.command == "ban":
-                return BanUserCommand(self.message, self.author, self.bot, self.group)
+                return BanUserCommand(self.message, self.author, self.redditBot)
             if self.command == "unban":
-                return UnBanUserCommand(self.message, self.author, self.bot, self.group)
+                return UnBanUserCommand(self.message, self.author, self.redditBot)
             if self.command == "mod":
-                return ModUserCommand(self.message, self.author, self.bot, self.group)
+                return ModUserCommand(self.message, self.author, self.redditBot)
             if self.command == "unmod":
-                return UnModUserCommand(self.message, self.author, self.bot, self.group)
+                return UnModUserCommand(self.message, self.author, self.redditBot)
         elif self.command in self.specialCommands:
             if self.command == "randomsr":
-                return PostRandomImageCommand(self.message, self.author, self.bot, self.reddit, self.nsfw)
+                return PostRandomImageCommand(self.message, self.author, self.redditBot)
         else:
-            return PostImageCommand(self.message, self.author, self.bot, self.reddit, self.command, self.nsfw)
+            return PostImageCommand(self.message, self.author, self.redditBot, self.command)
 
 
 class Command(object):
-    def __init__(self, message, author, bot):
+    def __init__(self, message, author, redditBot):
         self.configs = Config()
         self.admin = self.configs.admin
         self.moderators = self.configs.moderators
@@ -105,7 +102,7 @@ class Command(object):
         self.nsfw = self.configs.nsfw
         self.message = message
         self.author = author
-        self.bot = bot
+        self.bot = redditBot.bot
         self.id = message.id
 
     def isValid(self):
@@ -115,15 +112,15 @@ class Command(object):
         pass
 
     def post(self, post):
-        self.bot.post(post)
+        return self.bot.post(post)
 
 
 class PostImageCommand(Command):
-    def __init__(self, message, author, bot, reddit, subreddit, nsfw):
-        self.reddit = reddit
+    def __init__(self, message, author, redditBot, subreddit):
+        self.reddit = redditBot.reddit
         self.subreddit = subreddit
-        self.nsfw = nsfw
-        super().__init__(message, author, bot)
+        self.nsfw = redditBot.nsfw
+        super().__init__(message, author, redditBot)
 
     def getSize(self, url):
         file = urlopen(url)
@@ -173,10 +170,10 @@ class PostImageCommand(Command):
 
 
 class PostRandomImageCommand(PostImageCommand):
-    def __init__(self, message, author, bot, reddit, nsfw):
-        self.nsfw = nsfw
-        self.subreddit = str(reddit.get_random_subreddit(self.nsfw))
-        super().__init__(message, author, bot, reddit, self.subreddit, nsfw)
+    def __init__(self, message, author, redditBot):
+        self.nsfw = redditBot.nsfw
+        self.subreddit = str(redditBot.reddit.get_random_subreddit(self.nsfw))
+        super().__init__(message, author, redditBot, self.subreddit)
 
     def isValid(self):
         return super().isValid()
@@ -189,9 +186,9 @@ class PostRandomImageCommand(PostImageCommand):
 
 
 class BanUserCommand(Command):
-    def __init__(self, message, author, bot, group):
-        self.group = group
-        super().__init__(message, author, bot)
+    def __init__(self, message, author, redditBot):
+        self.group = redditBot.group
+        super().__init__(message, author, redditBot)
 
     def isValid(self):
         if not self.author.isBanned():
@@ -221,8 +218,8 @@ class BanUserCommand(Command):
 
 
 class UnBanUserCommand(BanUserCommand):
-    def __init__(self, message, author, bot, group):
-        super().__init__(message, author, bot, group)
+    def __init__(self, message, author, redditBot):
+        super().__init__(message, author, redditBot)
 
     def isValid(self):
         return super().isValid()
@@ -249,9 +246,9 @@ class UnBanUserCommand(BanUserCommand):
 
 
 class ModUserCommand(Command):
-    def __init__(self, message, author, bot, group):
-        self.group = group
-        super().__init__(message, author, bot)
+    def __init__(self, message, author, redditBot):
+        self.group = redditBot.group
+        super().__init__(message, author, redditBot)
 
     def isValid(self):
         if not self.author.isBanned():
@@ -281,8 +278,8 @@ class ModUserCommand(Command):
 
 
 class UnModUserCommand(ModUserCommand):
-    def __init__(self, message, author, bot, group):
-        super().__init__(message, author, bot, group)
+    def __init__(self, message, author, redditBot):
+        super().__init__(message, author, redditBot)
 
     def isValid(self):
         return super().isValid()
@@ -309,9 +306,9 @@ class UnModUserCommand(ModUserCommand):
 
 
 class SetNsfwCommand(Command):
-    def __init__(self, message, author, bot, value):
+    def __init__(self, message, author, redditBot, value):
         self.value = value
-        super().__init__(message, author, bot)
+        super().__init__(message, author, redditBot)
 
     def isValid(self):
         if not self.author.isBanned():

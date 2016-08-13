@@ -8,22 +8,12 @@
 import time
 from collections import OrderedDict
 from enum import Enum
-from urllib.request import urlopen
 
 from groupy import Group, Bot, config
 from praw import Reddit
 
 from groupmebot.command import CommandFactory, CommandException
 from groupmebot.config import Config
-
-
-def getSize(url):
-    file = urlopen(url)
-    size = file.headers.get("content-length")
-    if size:
-        size = int(size)
-    file.close()
-    return size / 1000000
 
 
 class RedditBotState(Enum):
@@ -85,13 +75,13 @@ class RedditBot(object):
                 if messages is not None:
                     for message in messages:
                         try:
-                            command = CommandFactory(message, self.bot, self.group, self.reddit, self.nsfw).createCommand()
+                            command = CommandFactory(message, self).createCommand()
                             self.commandQueue[command.id] = command
                         except CommandException as e:
                             self.bot.post(str(e))
             else:
                 raise Exception("group is None")
-            time.sleep(1.25) #TODO: find out how much time needed between requests to stop api errors
+            time.sleep(0.5) #TODO: find out how much time needed between requests to stop api errors
         except Exception as e:
             print("Error in getCommands(): " + e.__str__())
             time.sleep(120) #wait 120 seconds to hopefully let the groupme request limit reset
@@ -131,5 +121,4 @@ class RedditBot(object):
                     self.getCommands()
 
             except Exception as e:
-                self.connectBot()
                 print("Error in Run(): " + e.__str__())
