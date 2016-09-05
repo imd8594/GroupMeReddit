@@ -10,7 +10,6 @@ from groupmebot.RedditBot import RedditBot as rb
 
 """
     Main method
-    Excepts generic exceptions because catching all the other ones is too much work
 """
 
 
